@@ -11,6 +11,7 @@ The aim of the project is to implement a ML methodology for identifying artefact
 &#8269; Scikit-learn  
 &#8269; Tensorflow  
 &#8269; Keras  
+&#8269; Theano  
 &#8269; Scipy  
 &#8269; Matplotlib  
 &#8269; RF  
