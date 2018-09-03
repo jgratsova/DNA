@@ -11,7 +11,6 @@ import pandas as pd
 import numpy as np
 import pickle as pk
 import time
-#import sqlalchemy as sa
 from matplotlib import pyplot
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import RandomizedSearchCV
@@ -25,9 +24,10 @@ from sklearn.neural_network import MLPClassifier
 from scipy.stats import randint as sp_randInt
 from scipy.stats import uniform as sp_randFloat
 from pandas.plotting import scatter_matrix
-import multiprocessing as mp
 
-dataset = pd.read_csv("1to1_train_ready_rt7460.csv", header=None)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Read file into pandas DataFrame
+dataset = pd.read_csv("train_ready_train_data_5samples_rt7460.csv", header=None)
 X = dataset.iloc[:354085, 1:805].values
 y = dataset.iloc[:354085, 0].values
 
@@ -131,7 +131,7 @@ print(prt_string)
 # Train the model
 trained_model = model.fit(X_train, y_train)
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Evaluate performance of the trained model
 pred_class = trained_model.predict(X_test)
 accuracy = accuracy_score(y_test, pred_class)
@@ -167,7 +167,7 @@ cv_results = cross_val_score(model, X_train, y_train,
                              cv = KFold, scoring = 'accuracy',
                              n_jobs = 10)
 cv_outcomes.append(cv_results)
-description.append('ML_2')
+description.append('ML_3')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Cross Validation Results
@@ -196,6 +196,56 @@ model_list.append(('MLP_3', 'Neural Network Algorithm: PS-3',
                   class_report, kappa_score))
 
 ###############################################################################
+################  Manual tuning of parameter settings -PS3   ##################
+###############################################################################
+
+MLP_6 = MLPClassifier(activation = 'tanh', solver = 'sgd',
+                      hidden_layer_sizes = 200,
+                      alpha = 0.0001, batch_size = 'auto',
+                      learning_rate = 'constant', learning_rate_init = 0.001,
+                      power_t = 0.5, max_iter = 200, shuffle = True,
+                      random_state = None, tol = 0.0001, verbose = 1,
+                      warm_start = False, momentum = 0.9,
+                      nesterovs_momentum = True, early_stopping = False,
+                      validation_fraction = 0.1, beta_1 = 0.9,
+                      beta_2 = 0.999, epsilon = 1e-08)
+model = MLP_6
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Cross Validation
+cv_results = cross_val_score(model, X_train, y_train,
+                             cv = KFold, scoring = 'accuracy',
+                             n_jobs = 10)
+cv_outcomes.append(cv_results)
+description.append('ML_3')
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Cross Validation Results
+print("\n%s: " % ('Neural Network Algorithm: PS-3'))
+prt_string = "CV Mean Accuracy: %f (Std: %f)"% (
+        cv_results.mean(), cv_results.std())
+
+print(prt_string)
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Train the model
+trained_model = model.fit(X_train, y_train)
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Evaluate performance of the trained model
+pred_class = trained_model.predict(X_test)
+accuracy = accuracy_score(y_test, pred_class)
+conf_matrix = confusion_matrix(y_test, pred_class)
+class_report = classification_report(y_test, pred_class)
+kappa_score = cohen_kappa_score(y_test, pred_class)
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Collect performance results
+model_list.append(('MLP_6', 'Neural Network Algorithm: PS-6',
+                  trained_model, accuracy, conf_matrix,
+                  class_report, kappa_score))
+
+###############################################################################
 #########  Automatic tuning of parameter settings using GridSearchCV   ########
 ###############################################################################
 
@@ -203,7 +253,7 @@ model_list.append(('MLP_3', 'Neural Network Algorithm: PS-3',
 # Model setup
 model = MLPClassifier()
 parameters = {'activation' : ['relu', 'tanh', 'logistic'],
-              'solver' : ['sgd', 'adam', 'lbfgs', 'identify'],
+              'solver' : ['sgd', 'adam', 'lbfgs'],
               'learning_rate' : ['constant', 'invscaling', 'adaptive'],
               'hidden_layer_sizes' : [100, 200, 300],
               'max_iter' : [50, 100, 150, 200],
@@ -211,7 +261,7 @@ parameters = {'activation' : ['relu', 'tanh', 'logistic'],
               }
 
 grid = GridSearchCV(estimator = model, param_grid = parameters,
-                    cv = KFold, verbose = 1, n_jobs = 10)
+                    cv = KFold, verbose = 2, n_jobs = 10)
 grid.fit(X_train, y_train)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -223,6 +273,8 @@ print("\n The best estimator :\n",
       grid.best_estimator_)
 print("\n The best score :\n",
       grid.best_score_)
+grid_est.append(grid.best_estimator_)
+
 print("\n The best parameters :\n",
       grid.best_params_)
 print("\n =========================================================")
@@ -272,17 +324,17 @@ model_list.append(('MLP_4', 'Neural Network Algorithm: PS-4',
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Model setup
 model = MLPClassifier()
-parameters = {'activation' : ['relu', 'tanh', 'logistic'],
-              'solver' : ['sgd', 'adam', 'lbfgs', 'identify'],
+parameters = {'activation' : ['relu', 'tanh'],
+              'solver' : ['sgd', 'adam'],
               'learning_rate' : ['constant', 'adaptive'],
               'hidden_layer_sizes' : [100, 200, 300],
-              'max_iter' : sp_randInt(50, 100),
-              'batch_size' : [10, 30, 50, 70]
+              'max_iter' : sp_randInt(50, 300),
+              'batch_size' : [10, 30, 50, 70],
               'learning_rate_init' : sp_randFloat()
               }
 
-random = RandomizedSearchCV(estimator = model, param_grid = parameters,
-                    cv = KFold, verbose = 1, n_jobs = 10)
+random = RandomizedSearchCV(estimator = model, param_distributions = parameters,
+                    cv = KFold, n_iter = 10,  verbose = 1, n_jobs = 10)
 random.fit(X_train, y_train)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -356,7 +408,7 @@ pyplot.show()
 print('\n Trained Models : Evaluation and Reporting ... ... ...')
 for shtDes, des, model, accu, kappa, rept, cm in model_list:
     prt_ = "\nModel:{M}\nAccuracy:{A}\tKappa:{K}\nReport:\n{R}".format(
-            M = des, A = round(accu, 2), K = round(kappa, 2), R = rept)
+            M = des, A = np.round(accu, 2), K = np.round(kappa, 2), R = rept)
     prt_cm = "\nConfusion Matrix:\n{CM}".format(CM = cm)
     print(prt_, prt_cm)
     
@@ -368,59 +420,55 @@ print("\n\nTrained models are saved ... Done ...")
             
     
 
+###############################################################################
+###############  Prediction on Unseen Dataset Using Best Model   ##############
+###############################################################################
+
+pred_dataset =pd.read_csv('unseen_data_5samples_rt7460_test_set.csv', header = None)
+X = pred_dataset.iloc[:18637, 1:805].values
+y = pred_dataset.iloc[:18637, 0].values
+pred_test_count_1 = np.count_nonzero(y)
+
+f = open('model_MLP_1.pickle', 'rb')
+model = pk.load(f); f.close()
+prediction = model.predict(X)
+proba = model.predict_proba(X)
+
+for i in range(len(X)):
+    print("X=%s, Predicted=%s" % (X[i], y[i]))
+
+#pred_class = trained_model.predict(X_test)
+pred_accuracy = accuracy_score(y, prediction)
+print("\n Prediction Accuracy :\n", pred_accuracy)
+
+pred_conf_matrix = confusion_matrix(y, prediction)
+print("\n Prediction Confusion Matrix :\n", pred_conf_matrix)
+
+pred_class_report = classification_report(y, prediction)
+print("\n Prediction Class report :\n", pred_class_report)
+
+pred_kappa_score = cohen_kappa_score(y, prediction)
+print("\n Prediction Kappa Score :\n", pred_kappa_score)
+
+# Collect prediction results
+predict_list = []
+predict_list.append(('MLP_1', 'Neural Network Algorithm: PS-1',
+                  model, pred_accuracy, pred_conf_matrix,
+                  pred_class_report, pred_kappa_score))
 
 
+print('\n Trained Models : Evaluation and Reporting ... ... ...')
+for shtDes, des, model, accu, kappa, rept, cm in predict_list:
+    prt_ = "\nModel:{M}\nAccuracy:{A}\tKappa:{K}\nReport:\n{R}".format(
+            M = des, A = np.round(accu, 2), K = np.round(kappa, 2), R = rept)
+    prt_cm = "\nConfusion Matrix:\n{CM}".format(CM = cm)
+    print(prt_, prt_cm)
+    
+    # Save the trained model
+    with open('model_'+shtDes+'.pickle', 'wb') as f:
+        pk.dump(model, f)
+        
+print("\n\nTrained models are saved ... Done ...")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+... if __name__ == '__main__'
